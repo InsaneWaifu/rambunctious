@@ -19,7 +19,6 @@ impl PNGInfo {
         self.width = u32::from_be_bytes(idhr[0..4].try_into().unwrap());
         self.height = u32::from_be_bytes(idhr[4..8].try_into().unwrap());
         self.bitdepth = idhr[8];
-        println!("bitdepth {}", self.bitdepth);
         self.color_type = idhr[9];
         self.compression_method = idhr[10];
         self.filter_method = idhr[11];
@@ -51,20 +50,16 @@ pub fn png_to_intermediate(path: &Path) -> IntermediateImage {
     let mut palette: Vec<(u8, u8, u8)> = vec![];
     let mut fulldata: Vec<u8> = vec![];
     loop {
-        println!("cURSOR STARTS {}", reader.seek(std::io::SeekFrom::Current(0)).unwrap());
         let mut length: [u8;4] = [0;4];
         let mut ctype: [u8;4] = [0;4];
         reader.read_exact(&mut length).unwrap();
         reader.read_exact(&mut ctype).unwrap();
-        println!("read len and type cursor at {}", reader.seek(std::io::SeekFrom::Current(0)).unwrap());
         let len = u32::from_be_bytes(length);
-        println!("len is {}", len);
         let cty: &str = &*String::from_utf8(ctype.to_vec()).unwrap();
         let mut data: Vec<u8> = vec![0;len as usize];
         let mut crc: [u8;4] = [0;4];
         reader.read_exact(&mut data).unwrap();
         reader.read_exact(&mut crc).unwrap();
-        println!("found {} cursor {}", cty, reader.seek(std::io::SeekFrom::Current(0)).unwrap());
 
         match cty {
             "IHDR" => info.from_idhr(&data[..]),
@@ -78,7 +73,6 @@ pub fn png_to_intermediate(path: &Path) -> IntermediateImage {
                 }
             },
             "IDAT" => {
-                println!("idat first byte {} {} {} {}", data[0], data[1], data[2], data[3]);
                 fulldata.extend(&data[..]);
             },
             "IEND" => {
@@ -88,12 +82,10 @@ pub fn png_to_intermediate(path: &Path) -> IntermediateImage {
         }
     }
     let realdata = inflate_bytes_zlib(&fulldata).unwrap();
-    println!("realdata length {}", realdata.len());
     let mut br = BufReader::new(&realdata[..]);
     let mut px = vec![];
     assert_eq!(info.bitdepth, 8);
     // read scanlines
-    println!("bpp {} coltype {}", info.get_bpp(), info.color_type);
     for y in 0..info.height {
         let mut filtype: [u8;1] = [0;1];
         br.read_exact(&mut filtype).unwrap();
